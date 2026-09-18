@@ -5,6 +5,35 @@ import 'liked_posts_screen.dart';
 class ProfileScreen extends StatelessWidget {
   const ProfileScreen({super.key});
 
+  void showLogoutDialog(BuildContext context) {
+    showDialog<void>(
+      context: context,
+      builder: (dialogContext) {
+        return AlertDialog(
+          title: const Text('Logout'),
+          content: const Text(
+            'Apakah kamu yakin ingin keluar dari akun?',
+          ),
+          actions: [
+            TextButton(
+              onPressed: () {
+                Navigator.pop(dialogContext);
+              },
+              child: const Text('Batal'),
+            ),
+            ElevatedButton(
+              onPressed: () {
+                Navigator.pop(dialogContext);
+                Navigator.pop(context);
+              },
+              child: const Text('Logout'),
+            ),
+          ],
+        );
+      },
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     return Scaffold(
@@ -17,11 +46,15 @@ class ProfileScreen extends StatelessWidget {
           children: [
             const SizedBox(height: 20),
 
+            // =========================
+            // PROFILE HEADER
+            // =========================
+
             const CircleAvatar(
-              radius: 50,
+              radius: 55,
               child: Icon(
                 Icons.person,
-                size: 55,
+                size: 60,
               ),
             ),
 
@@ -30,7 +63,7 @@ class ProfileScreen extends StatelessWidget {
             const Text(
               'Anisa',
               style: TextStyle(
-                fontSize: 24,
+                fontSize: 25,
                 fontWeight: FontWeight.bold,
               ),
             ),
@@ -41,15 +74,31 @@ class ProfileScreen extends StatelessWidget {
               'anisa@email.com',
               style: TextStyle(
                 color: Colors.grey.shade600,
+                fontSize: 15,
               ),
             ),
 
             const SizedBox(height: 35),
 
+            // =========================
+            // ARTIKEL SAYA
+            // =========================
+
             Card(
               child: ListTile(
-                leading: const Icon(Icons.article_outlined),
-                title: const Text('Artikel Saya'),
+                contentPadding: const EdgeInsets.symmetric(
+                  horizontal: 16,
+                  vertical: 5,
+                ),
+                leading: const CircleAvatar(
+                  child: Icon(Icons.article_outlined),
+                ),
+                title: const Text(
+                  'Artikel Saya',
+                  style: TextStyle(
+                    fontWeight: FontWeight.bold,
+                  ),
+                ),
                 subtitle: const Text(
                   'Lihat artikel yang kamu buat',
                 ),
@@ -66,12 +115,27 @@ class ProfileScreen extends StatelessWidget {
               ),
             ),
 
-            const SizedBox(height: 10),
+            const SizedBox(height: 12),
+
+            // =========================
+            // ARTIKEL DISUKAI
+            // =========================
 
             Card(
               child: ListTile(
-                leading: const Icon(Icons.favorite_border),
-                title: const Text('Artikel Disukai'),
+                contentPadding: const EdgeInsets.symmetric(
+                  horizontal: 16,
+                  vertical: 5,
+                ),
+                leading: const CircleAvatar(
+                  child: Icon(Icons.favorite_border),
+                ),
+                title: const Text(
+                  'Artikel Disukai',
+                  style: TextStyle(
+                    fontWeight: FontWeight.bold,
+                  ),
+                ),
                 subtitle: const Text(
                   'Lihat artikel yang kamu sukai',
                 ),
@@ -88,16 +152,54 @@ class ProfileScreen extends StatelessWidget {
               ),
             ),
 
-            const SizedBox(height: 10),
+            const SizedBox(height: 12),
+
+            // =========================
+            // LOGOUT
+            // =========================
 
             Card(
               child: ListTile(
-                leading: const Icon(Icons.logout),
-                title: const Text('Logout'),
+                contentPadding: const EdgeInsets.symmetric(
+                  horizontal: 16,
+                  vertical: 5,
+                ),
+                leading: const CircleAvatar(
+                  child: Icon(Icons.logout),
+                ),
+                title: const Text(
+                  'Logout',
+                  style: TextStyle(
+                    fontWeight: FontWeight.bold,
+                  ),
+                ),
+                subtitle: const Text(
+                  'Keluar dari akun BlogApp',
+                ),
                 trailing: const Icon(Icons.chevron_right),
                 onTap: () {
-                  Navigator.pop(context);
+                  showLogoutDialog(context);
                 },
+              ),
+            ),
+
+            const SizedBox(height: 30),
+
+            Text(
+              'BlogApp',
+              style: TextStyle(
+                color: Colors.grey.shade500,
+                fontSize: 13,
+              ),
+            ),
+
+            const SizedBox(height: 5),
+
+            Text(
+              'Tempat berbagi cerita dan pengetahuan',
+              style: TextStyle(
+                color: Colors.grey.shade500,
+                fontSize: 12,
               ),
             ),
           ],
