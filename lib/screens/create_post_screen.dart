@@ -39,15 +39,41 @@ class _CreatePostScreenState extends State<CreatePostScreen> {
     final String title = titleController.text.trim();
     final String content = contentController.text.trim();
 
-    // Validasi judul
+    // =========================
+    // VALIDASI JUDUL
+    // =========================
+
     if (title.isEmpty) {
       showMessage('Judul artikel wajib diisi!');
       return;
     }
 
-    // Validasi isi
+    if (title.length < 5) {
+      showMessage('Judul artikel minimal 5 karakter!');
+      return;
+    }
+
+    if (title.length > 100) {
+      showMessage('Judul artikel maksimal 100 karakter!');
+      return;
+    }
+
+    // =========================
+    // VALIDASI ISI ARTIKEL
+    // =========================
+
     if (content.isEmpty) {
       showMessage('Isi artikel wajib diisi!');
+      return;
+    }
+
+    if (content.length < 20) {
+      showMessage('Isi artikel minimal 20 karakter!');
+      return;
+    }
+
+    if (content.length > 5000) {
+      showMessage('Isi artikel maksimal 5000 karakter!');
       return;
     }
 
@@ -78,11 +104,11 @@ class _CreatePostScreenState extends State<CreatePostScreen> {
 
       showMessage('Gagal mempublikasikan artikel');
     } finally {
-      if (!mounted) return;
-
-      setState(() {
-        isLoading = false;
-      });
+      if (mounted) {
+        setState(() {
+          isLoading = false;
+        });
+      }
     }
   }
 
@@ -91,7 +117,9 @@ class _CreatePostScreenState extends State<CreatePostScreen> {
   // =========================
 
   void showMessage(String message) {
-    ScaffoldMessenger.of(context).showSnackBar(
+    ScaffoldMessenger.of(
+      context,
+    ).showSnackBar(
       SnackBar(
         content: Text(message),
       ),
@@ -146,9 +174,11 @@ class _CreatePostScreenState extends State<CreatePostScreen> {
             TextField(
               controller: titleController,
               textInputAction: TextInputAction.next,
+              maxLength: 100,
               decoration: const InputDecoration(
                 hintText: 'Masukkan judul artikel',
                 border: OutlineInputBorder(),
+                counterText: 'Maksimal 100 karakter',
               ),
             ),
 
@@ -168,7 +198,7 @@ class _CreatePostScreenState extends State<CreatePostScreen> {
             const SizedBox(height: 8),
 
             DropdownButtonFormField<int>(
-              value: selectedCategoryId,
+              initialValue: selectedCategoryId,
               decoration: const InputDecoration(
                 border: OutlineInputBorder(),
                 hintText: 'Pilih kategori',
@@ -207,10 +237,12 @@ class _CreatePostScreenState extends State<CreatePostScreen> {
               controller: contentController,
               minLines: 10,
               maxLines: null,
+              maxLength: 5000,
               textAlignVertical: TextAlignVertical.top,
               decoration: const InputDecoration(
                 hintText: 'Tulis isi artikel di sini...',
                 border: OutlineInputBorder(),
+                counterText: 'Maksimal 5000 karakter',
               ),
             ),
 
@@ -235,9 +267,7 @@ class _CreatePostScreenState extends State<CreatePostScreen> {
                       )
                     : const Icon(Icons.publish),
                 label: Text(
-                  isLoading
-                      ? 'Menyimpan...'
-                      : 'Publikasikan',
+                  isLoading ? 'Menyimpan...' : 'Publikasikan',
                 ),
               ),
             ),
