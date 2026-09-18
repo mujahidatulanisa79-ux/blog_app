@@ -20,34 +20,48 @@ class DetailPostScreen extends StatefulWidget {
 
 class _DetailPostScreenState extends State<DetailPostScreen> {
   late Post post;
-  final commentController = TextEditingController();
+
+  final TextEditingController commentController =
+      TextEditingController();
 
   List<Comment> comments = [];
+
   bool isLoadingComments = true;
+  bool isSendingComment = false;
+  bool isDeletingPost = false;
 
   @override
   void initState() {
     super.initState();
+
     post = widget.post;
+
     loadComments();
   }
 
   // =========================
-  // LOAD COMMENTS DARI API
+  // LOAD COMMENTS
   // =========================
 
   Future<void> loadComments() async {
-    setState(() {
-      isLoadingComments = true;
-    });
+    if (mounted) {
+      setState(() {
+        isLoadingComments = true;
+      });
+    }
 
     try {
       final data = await ApiService.getComments(post.id);
+
+      if (!mounted) return;
+
       setState(() {
         comments = data;
         isLoadingComments = false;
       });
     } catch (e) {
+      if (!mounted) return;
+
       setState(() {
         isLoadingComments = false;
       });
@@ -55,27 +69,42 @@ class _DetailPostScreenState extends State<DetailPostScreen> {
   }
 
   // =========================
-  // TOGGLE LIKE (LOKAL)
+  // TOGGLE LIKE
   // =========================
 
   void toggleLike() {
     setState(() {
       post.isLiked = !post.isLiked;
+
       post.likes += post.isLiked ? 1 : -1;
     });
   }
 
   // =========================
-  // ADD COMMENT KE API
+  // ADD COMMENT
   // =========================
 
   Future<void> addComment() async {
-    final content = commentController.text.trim();
+    final String content = commentController.text.trim();
 
     if (content.isEmpty) {
       showMessage('Komentar tidak boleh kosong!');
       return;
     }
+
+    if (content.length < 3) {
+      showMessage('Komentar minimal 3 karakter!');
+      return;
+    }
+
+    if (content.length > 500) {
+      showMessage('Komentar maksimal 500 karakter!');
+      return;
+    }
+
+    setState(() {
+      isSendingComment = true;
+    });
 
     try {
       await ApiService.addComment(
@@ -84,12 +113,25 @@ class _DetailPostScreenState extends State<DetailPostScreen> {
         content: content,
       );
 
+      if (!mounted) return;
+
       commentController.clear();
+
       await loadComments();
+
+      if (!mounted) return;
 
       showMessage('Komentar berhasil ditambahkan!');
     } catch (e) {
+      if (!mounted) return;
+
       showMessage('Gagal menambahkan komentar');
+    } finally {
+      if (mounted) {
+        setState(() {
+          isSendingComment = false;
+        });
+      }
     }
   }
 
@@ -98,22 +140,27 @@ class _DetailPostScreenState extends State<DetailPostScreen> {
   // =========================
 
   Future<void> editPost() async {
-    final result = await Navigator.push(
+    final result = await Navigator.push<bool>(
       context,
       MaterialPageRoute(
         builder: (context) => EditPostScreen(post: post),
       ),
     );
 
-    if (result == true && mounted) {
-      try {
-        final updatedPost = await ApiService.getPostById(post.id);
-        setState(() {
-          post = updatedPost;
-        });
-      } catch (e) {
-        // Keep current post data
-      }
+    if (!mounted || result != true) return;
+
+    try {
+      final updatedPost = await ApiService.getPostById(post.id);
+
+      if (!mounted) return;
+
+      setState(() {
+        post = updatedPost;
+      });
+    } catch (e) {
+      if (!mounted) return;
+
+      showMessage('Gagal memuat artikel terbaru');
     }
   }
 
@@ -122,9 +169,9 @@ class _DetailPostScreenState extends State<DetailPostScreen> {
   // =========================
 
   void deletePost() {
-    showDialog(
+    showDialog<void>(
       context: context,
-      builder: (context) {
+      builder: (dialogContext) {
         return AlertDialog(
           title: const Text('Hapus Artikel'),
           content: const Text(
@@ -133,23 +180,36 @@ class _DetailPostScreenState extends State<DetailPostScreen> {
           actions: [
             TextButton(
               onPressed: () {
-                Navigator.pop(context);
+                Navigator.pop(dialogContext);
               },
               child: const Text('Batal'),
             ),
             ElevatedButton(
-              onPressed: () async {
-                Navigator.pop(context);
+              onPressed: isDeletingPost
+                  ? null
+                  : () async {
+                      Navigator.pop(dialogContext);
 
-                try {
-                  await ApiService.deletePost(post.id);
-                  if (mounted) {
-                    Navigator.pop(context, true);
-                  }
-                } catch (e) {
-                  showMessage('Gagal menghapus artikel');
-                }
-              },
+                      setState(() {
+                        isDeletingPost = true;
+                      });
+
+                      try {
+                        await ApiService.deletePost(post.id);
+
+                        if (!mounted) return;
+
+                        Navigator.pop(context, true);
+                      } catch (e) {
+                        if (!mounted) return;
+
+                        setState(() {
+                          isDeletingPost = false;
+                        });
+
+                        showMessage('Gagal menghapus artikel');
+                      }
+                    },
               child: const Text('Hapus'),
             ),
           ],
@@ -158,17 +218,34 @@ class _DetailPostScreenState extends State<DetailPostScreen> {
     );
   }
 
+  // =========================
+  // SHOW MESSAGE
+  // =========================
+
   void showMessage(String message) {
+    if (!mounted) return;
+
     ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(content: Text(message)),
+      SnackBar(
+        content: Text(message),
+      ),
     );
   }
+
+  // =========================
+  // DISPOSE
+  // =========================
 
   @override
   void dispose() {
     commentController.dispose();
+
     super.dispose();
   }
+
+  // =========================
+  // BUILD
+  // =========================
 
   @override
   Widget build(BuildContext context) {
@@ -178,10 +255,12 @@ class _DetailPostScreenState extends State<DetailPostScreen> {
         actions: [
           IconButton(
             onPressed: editPost,
+            tooltip: 'Edit Artikel',
             icon: const Icon(Icons.edit),
           ),
           IconButton(
             onPressed: deletePost,
+            tooltip: 'Hapus Artikel',
             icon: const Icon(Icons.delete),
           ),
         ],
@@ -190,6 +269,10 @@ class _DetailPostScreenState extends State<DetailPostScreen> {
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
+            // =========================
+            // GAMBAR ARTIKEL
+            // =========================
+
             Image.network(
               post.image,
               width: double.infinity,
@@ -207,6 +290,11 @@ class _DetailPostScreenState extends State<DetailPostScreen> {
                 );
               },
             ),
+
+            // =========================
+            // DETAIL ARTIKEL
+            // =========================
+
             Padding(
               padding: const EdgeInsets.all(20),
               child: Column(
@@ -219,7 +307,9 @@ class _DetailPostScreenState extends State<DetailPostScreen> {
                       fontWeight: FontWeight.bold,
                     ),
                   ),
+
                   const SizedBox(height: 10),
+
                   Text(
                     post.title,
                     style: const TextStyle(
@@ -227,15 +317,26 @@ class _DetailPostScreenState extends State<DetailPostScreen> {
                       fontWeight: FontWeight.bold,
                     ),
                   ),
+
                   const SizedBox(height: 12),
+
                   Row(
                     children: [
-                      const Icon(Icons.person_outline, size: 20),
+                      const Icon(
+                        Icons.person_outline,
+                        size: 20,
+                      ),
                       const SizedBox(width: 6),
                       Text(post.author),
                     ],
                   ),
+
                   const SizedBox(height: 20),
+
+                  // =========================
+                  // ISI ARTIKEL
+                  // =========================
+
                   Text(
                     post.content,
                     style: const TextStyle(
@@ -243,25 +344,49 @@ class _DetailPostScreenState extends State<DetailPostScreen> {
                       height: 1.6,
                     ),
                   ),
+
                   const SizedBox(height: 25),
+
+                  // =========================
+                  // LIKE & KOMENTAR
+                  // =========================
+
                   Row(
                     children: [
                       IconButton(
                         onPressed: toggleLike,
+                        tooltip: 'Sukai artikel',
                         icon: Icon(
                           post.isLiked
                               ? Icons.favorite
                               : Icons.favorite_border,
                         ),
                       ),
+
                       Text('${post.likes}'),
+
                       const SizedBox(width: 20),
-                      const Icon(Icons.comment_outlined),
+
+                      const Icon(
+                        Icons.comment_outlined,
+                      ),
+
                       const SizedBox(width: 6),
-                      Text('${comments.length} komentar'),
+
+                      Text(
+                        '${comments.length} komentar',
+                      ),
                     ],
                   ),
-                  const Divider(height: 35),
+
+                  const Divider(
+                    height: 35,
+                  ),
+
+                  // =========================
+                  // KOMENTAR
+                  // =========================
+
                   const Text(
                     'Komentar',
                     style: TextStyle(
@@ -269,7 +394,13 @@ class _DetailPostScreenState extends State<DetailPostScreen> {
                       fontWeight: FontWeight.bold,
                     ),
                   ),
+
                   const SizedBox(height: 15),
+
+                  // =========================
+                  // INPUT KOMENTAR
+                  // =========================
+
                   Row(
                     crossAxisAlignment: CrossAxisAlignment.end,
                     children: [
@@ -278,20 +409,43 @@ class _DetailPostScreenState extends State<DetailPostScreen> {
                           controller: commentController,
                           minLines: 1,
                           maxLines: 4,
+                          maxLength: 500,
                           decoration: const InputDecoration(
                             hintText: 'Tulis komentar...',
                             border: OutlineInputBorder(),
+                            counterText: '',
                           ),
                         ),
                       ),
+
                       const SizedBox(width: 8),
+
                       IconButton(
-                        onPressed: addComment,
-                        icon: const Icon(Icons.send),
+                        onPressed:
+                            isSendingComment ? null : addComment,
+                        tooltip: 'Kirim komentar',
+                        icon: isSendingComment
+                            ? const SizedBox(
+                                width: 22,
+                                height: 22,
+                                child:
+                                    CircularProgressIndicator(
+                                  strokeWidth: 2,
+                                ),
+                              )
+                            : const Icon(
+                                Icons.send,
+                              ),
                       ),
                     ],
                   ),
+
                   const SizedBox(height: 20),
+
+                  // =========================
+                  // LOADING KOMENTAR
+                  // =========================
+
                   if (isLoadingComments)
                     const Center(
                       child: Padding(
@@ -299,16 +453,30 @@ class _DetailPostScreenState extends State<DetailPostScreen> {
                         child: CircularProgressIndicator(),
                       ),
                     )
+
+                  // =========================
+                  // BELUM ADA KOMENTAR
+                  // =========================
+
                   else if (comments.isEmpty)
                     const Center(
                       child: Padding(
                         padding: EdgeInsets.all(20),
-                        child: Text('Belum ada komentar.'),
+                        child: Text(
+                          'Belum ada komentar.',
+                        ),
                       ),
                     )
+
+                  // =========================
+                  // DAFTAR KOMENTAR
+                  // =========================
+
                   else
                     ...comments.map(
-                      (comment) => CommentItem(comment: comment),
+                      (comment) => CommentItem(
+                        comment: comment,
+                      ),
                     ),
                 ],
               ),
