@@ -168,8 +168,8 @@ class _DetailPostScreenState extends State<DetailPostScreen> {
   // DELETE POST
   // =========================
 
-  void deletePost() {
-    showDialog<void>(
+  Future<void> deletePost() async {
+    final confirmed = await showDialog<bool>(
       context: context,
       builder: (dialogContext) {
         return AlertDialog(
@@ -180,42 +180,44 @@ class _DetailPostScreenState extends State<DetailPostScreen> {
           actions: [
             TextButton(
               onPressed: () {
-                Navigator.pop(dialogContext);
+                Navigator.pop(dialogContext, false);
               },
               child: const Text('Batal'),
             ),
             ElevatedButton(
-              onPressed: isDeletingPost
-                  ? null
-                  : () async {
-                      Navigator.pop(dialogContext);
-
-                      setState(() {
-                        isDeletingPost = true;
-                      });
-
-                      try {
-                        await ApiService.deletePost(post.id);
-
-                        if (!mounted) return;
-
-                        Navigator.pop(context, true);
-                      } catch (e) {
-                        if (!mounted) return;
-
-                        setState(() {
-                          isDeletingPost = false;
-                        });
-
-                        showMessage('Gagal menghapus artikel');
-                      }
-                    },
+              onPressed: () {
+                Navigator.pop(dialogContext, true);
+              },
               child: const Text('Hapus'),
             ),
           ],
         );
       },
     );
+
+    if (confirmed != true || !mounted) return;
+
+    setState(() {
+      isDeletingPost = true;
+    });
+
+    try {
+      await ApiService.deletePost(post.id);
+
+      if (!mounted) return;
+
+      showMessage('Artikel berhasil dihapus');
+
+      Navigator.pop(context, true);
+    } catch (e) {
+      if (!mounted) return;
+
+      setState(() {
+        isDeletingPost = false;
+      });
+
+      showMessage('Gagal menghapus artikel');
+    }
   }
 
   // =========================
@@ -259,9 +261,17 @@ class _DetailPostScreenState extends State<DetailPostScreen> {
             icon: const Icon(Icons.edit),
           ),
           IconButton(
-            onPressed: deletePost,
+            onPressed: isDeletingPost ? null : deletePost,
             tooltip: 'Hapus Artikel',
-            icon: const Icon(Icons.delete),
+            icon: isDeletingPost
+                ? const SizedBox(
+                    width: 22,
+                    height: 22,
+                    child: CircularProgressIndicator(
+                      strokeWidth: 2,
+                    ),
+                  )
+                : const Icon(Icons.delete),
           ),
         ],
       ),
@@ -428,8 +438,7 @@ class _DetailPostScreenState extends State<DetailPostScreen> {
                             ? const SizedBox(
                                 width: 22,
                                 height: 22,
-                                child:
-                                    CircularProgressIndicator(
+                                child: CircularProgressIndicator(
                                   strokeWidth: 2,
                                 ),
                               )
