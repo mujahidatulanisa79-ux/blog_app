@@ -6,10 +6,7 @@ import '../services/api_service.dart';
 class EditPostScreen extends StatefulWidget {
   final Post post;
 
-  const EditPostScreen({
-    super.key,
-    required this.post,
-  });
+  const EditPostScreen({super.key, required this.post});
 
   @override
   State<EditPostScreen> createState() => _EditPostScreenState();
@@ -20,6 +17,7 @@ class _EditPostScreenState extends State<EditPostScreen> {
   late TextEditingController contentController;
 
   late int selectedCategoryId;
+
   bool isLoading = false;
 
   final List<Map<String, dynamic>> categories = [
@@ -33,12 +31,18 @@ class _EditPostScreenState extends State<EditPostScreen> {
     {'id': 8, 'name': 'Career'},
   ];
 
+  // =========================
+  // INIT STATE
+  // =========================
+
   @override
   void initState() {
     super.initState();
 
     titleController = TextEditingController(text: widget.post.title);
+
     contentController = TextEditingController(text: widget.post.content);
+
     selectedCategoryId = widget.post.categoryId;
   }
 
@@ -47,16 +51,44 @@ class _EditPostScreenState extends State<EditPostScreen> {
   // =========================
 
   Future<void> saveChanges() async {
-    final title = titleController.text.trim();
-    final content = contentController.text.trim();
+    final String title = titleController.text.trim();
+    final String content = contentController.text.trim();
+
+    // =========================
+    // VALIDASI JUDUL
+    // =========================
 
     if (title.isEmpty) {
       showMessage('Judul artikel wajib diisi!');
       return;
     }
 
+    if (title.length < 5) {
+      showMessage('Judul artikel minimal 5 karakter!');
+      return;
+    }
+
+    if (title.length > 100) {
+      showMessage('Judul artikel maksimal 100 karakter!');
+      return;
+    }
+
+    // =========================
+    // VALIDASI ISI
+    // =========================
+
     if (content.isEmpty) {
       showMessage('Isi artikel wajib diisi!');
+      return;
+    }
+
+    if (content.length < 20) {
+      showMessage('Isi artikel minimal 20 karakter!');
+      return;
+    }
+
+    if (content.length > 5000) {
+      showMessage('Isi artikel maksimal 5000 karakter!');
       return;
     }
 
@@ -66,7 +98,7 @@ class _EditPostScreenState extends State<EditPostScreen> {
 
     try {
       final category = categories.firstWhere(
-        (c) => c['id'] == selectedCategoryId,
+        (category) => category['id'] == selectedCategoryId,
       );
 
       await ApiService.updatePost(
@@ -77,14 +109,15 @@ class _EditPostScreenState extends State<EditPostScreen> {
         categoryName: category['name'],
       );
 
-      if (mounted) {
-        showMessage('Artikel berhasil diperbarui!');
-        Navigator.pop(context, true);
-      }
+      if (!mounted) return;
+
+      showMessage('Artikel berhasil diperbarui!');
+
+      Navigator.pop(context, true);
     } catch (e) {
-      if (mounted) {
-        showMessage('Gagal memperbarui artikel!');
-      }
+      if (!mounted) return;
+
+      showMessage('Gagal memperbarui artikel!');
     } finally {
       if (mounted) {
         setState(() {
@@ -94,25 +127,44 @@ class _EditPostScreenState extends State<EditPostScreen> {
     }
   }
 
+  // =========================
+  // SHOW MESSAGE
+  // =========================
+
   void showMessage(String message) {
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(content: Text(message)),
-    );
+    if (!mounted) return;
+
+    ScaffoldMessenger.of(
+      context,
+    ).showSnackBar(SnackBar(content: Text(message)));
   }
+
+  // =========================
+  // DISPOSE
+  // =========================
 
   @override
   void dispose() {
     titleController.dispose();
     contentController.dispose();
+
     super.dispose();
   }
+
+  // =========================
+  // BUILD
+  // =========================
 
   @override
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(
-        title: const Text('Edit Artikel'),
+        title: const Text(
+          'Edit Artikel',
+          style: TextStyle(fontWeight: FontWeight.bold),
+        ),
       ),
+
       body: SingleChildScrollView(
         padding: const EdgeInsets.all(16),
         child: Column(
@@ -121,17 +173,21 @@ class _EditPostScreenState extends State<EditPostScreen> {
             // =========================
             // JUDUL
             // =========================
-
             const Text(
               'Judul Artikel',
               style: TextStyle(fontWeight: FontWeight.bold),
             ),
+
             const SizedBox(height: 8),
+
             TextField(
               controller: titleController,
+              textInputAction: TextInputAction.next,
+              maxLength: 100,
               decoration: const InputDecoration(
                 hintText: 'Masukkan judul artikel',
                 border: OutlineInputBorder(),
+                counterText: 'Maksimal 100 karakter',
               ),
             ),
 
@@ -140,14 +196,15 @@ class _EditPostScreenState extends State<EditPostScreen> {
             // =========================
             // KATEGORI
             // =========================
-
             const Text(
               'Kategori',
               style: TextStyle(fontWeight: FontWeight.bold),
             ),
+
             const SizedBox(height: 8),
+
             DropdownButtonFormField<int>(
-              value: selectedCategoryId,
+              initialValue: selectedCategoryId,
               decoration: const InputDecoration(
                 border: OutlineInputBorder(),
                 hintText: 'Pilih kategori',
@@ -158,41 +215,47 @@ class _EditPostScreenState extends State<EditPostScreen> {
                   child: Text(category['name']),
                 );
               }).toList(),
-              onChanged: (value) {
-                setState(() {
-                  selectedCategoryId = value!;
-                });
-              },
+              onChanged: isLoading
+                  ? null
+                  : (value) {
+                      if (value == null) return;
+
+                      setState(() {
+                        selectedCategoryId = value;
+                      });
+                    },
             ),
 
             const SizedBox(height: 20),
 
             // =========================
-            // ISI
+            // ISI ARTIKEL
             // =========================
-
             const Text(
               'Isi Artikel',
               style: TextStyle(fontWeight: FontWeight.bold),
             ),
+
             const SizedBox(height: 8),
+
             TextField(
               controller: contentController,
               minLines: 10,
               maxLines: null,
+              maxLength: 5000,
               textAlignVertical: TextAlignVertical.top,
               decoration: const InputDecoration(
                 hintText: 'Tulis isi artikel di sini...',
                 border: OutlineInputBorder(),
+                counterText: 'Maksimal 5000 karakter',
               ),
             ),
 
             const SizedBox(height: 24),
 
             // =========================
-            // BUTTON
+            // BUTTON SIMPAN
             // =========================
-
             SizedBox(
               width: double.infinity,
               height: 52,
@@ -205,9 +268,7 @@ class _EditPostScreenState extends State<EditPostScreen> {
                         child: CircularProgressIndicator(strokeWidth: 2),
                       )
                     : const Icon(Icons.save),
-                label: Text(
-                  isLoading ? 'Menyimpan...' : 'Simpan Perubahan',
-                ),
+                label: Text(isLoading ? 'Menyimpan...' : 'Simpan Perubahan'),
               ),
             ),
           ],
